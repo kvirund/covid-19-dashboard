@@ -34,6 +34,7 @@ def load_by_country_data():
                            inplace=True)
                 csv.drop(columns={"FIPS", "Admin2", "Lat", "Long_"}, inplace=True)
             output_countries.update(csv["Country/Region"].unique())
+
     print("Loaded {} files".format(counter))
     print({c: c for c in output_countries})
     return output_data, output_countries
@@ -75,7 +76,8 @@ def build_app(_state):
         dcc.Tabs(children=[dcc.Tab(label='General', children=[dcc.Dropdown(id='general-selection',
                                                                            options=[{'label': c, 'value': c} for c in
                                                                                     {"Confirmed", "Deaths", "Recovered",
-                                                                                     "Active"}], multi=True,
+                                                                                     "Active", "Death/Outcome"}],
+                                                                           multi=True,
                                                                            value=state["types"]["types"]),
                                                               dcc.Dropdown(id='general-countries',
                                                                            options=[{'label': c, 'value': c} for c in
@@ -98,18 +100,42 @@ def build_app(_state):
     return result
 
 
-def load_general_data():
-    _confirmed = pd.read_csv('COVID-19/csse_covid_19_data/csse_covid_19_time_series/time_series_19-covid-Confirmed.csv')
-    _deaths = pd.read_csv('COVID-19/csse_covid_19_data/csse_covid_19_time_series/time_series_19-covid-Deaths.csv')
-    _recovered = pd.read_csv('COVID-19/csse_covid_19_data/csse_covid_19_time_series/time_series_19-covid-Recovered.csv')
+def fixdate(match):
+    day = int(match.group(1))
+    month = int(match.group(2))
+    year = re.sub("^20(\\d+)$", "\\1", match.group(3))
+    result = "{:02d}/{:02d}/20{}".format(day, month, year)
+    return result
 
-    return {'Confirmed': _confirmed.sum()[3:], 'Deaths': _deaths.sum()[3:], 'Recovered': _recovered.sum()[3:],
-            'Active': _confirmed.sum()[3:] - _recovered.sum()[3:] - _deaths.sum()[3:]}, {
+
+def load_general_data():
+    _confirmed = pd.read_csv(
+        'COVID-19/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv')
+    _confirmed.rename(columns=lambda x: re.sub("^(\\d+)/(\\d+)/(\\d+)$", fixdate, x),
+                      inplace=True)
+    _deaths = pd.read_csv('COVID-19/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv')
+    _deaths.rename(columns=lambda x: re.sub("^(\\d+)/(\\d+)/(\\d+)$", fixdate, x),
+                   inplace=True)
+    _recovered = pd.read_csv(
+        'COVID-19/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_recovered_global.csv')
+    _recovered.rename(columns=lambda x: re.sub("^(\\d+)/(\\d+)/(\\d+)$", fixdate, x),
+                      inplace=True)
+
+    return {
+               'Confirmed': _confirmed.sum()[3:],
+               'Deaths': _deaths.sum()[3:],
+               'Recovered': _recovered.sum()[3:],
+               'Active': _confirmed.sum()[3:] - _recovered.sum()[3:] - _deaths.sum()[3:],
+               'Death/Outcome': 100 * _deaths.sum()[3:] / (_recovered.sum()[3:] + _deaths.sum()[3:])}, {
                'Confirmed': _confirmed.groupby("Country/Region").sum().T[3:],
                'Deaths': _deaths.groupby("Country/Region").sum().T[3:],
                'Recovered': _recovered.groupby("Country/Region").sum().T[3:],
                'Active': _confirmed.groupby("Country/Region").sum().T[3:] - _recovered.groupby(
-                   "Country/Region").sum().T[3:] - _deaths.groupby("Country/Region").sum().T[3:]}
+                   "Country/Region").sum().T[3:] - _deaths.groupby("Country/Region").sum().T[3:],
+               'Death/Outcome': 100 * _deaths.groupby(
+                   "Country/Region").sum().T[3:] / (_recovered.groupby(
+                   "Country/Region").sum().T[3:] + _deaths.groupby("Country/Region").sum().T[3:])
+           }
 
 
 if __name__ == '__main__':
