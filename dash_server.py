@@ -76,7 +76,8 @@ def build_app(_state):
         dcc.Tabs(children=[dcc.Tab(label='General', children=[dcc.Dropdown(id='general-selection',
                                                                            options=[{'label': c, 'value': c} for c in
                                                                                     {"Confirmed", "Deaths", "Recovered",
-                                                                                     "Active", "Death/Outcome"}],
+                                                                                     "Active", "Death rate",
+                                                                                     "Recovery rate"}],
                                                                            multi=True,
                                                                            value=state["types"]["types"]),
                                                               dcc.Dropdown(id='general-countries',
@@ -126,13 +127,17 @@ def load_general_data():
                'Deaths': _deaths.sum()[3:],
                'Recovered': _recovered.sum()[3:],
                'Active': _confirmed.sum()[3:] - _recovered.sum()[3:] - _deaths.sum()[3:],
-               'Death/Outcome': 100 * _deaths.sum()[3:] / (_recovered.sum()[3:] + _deaths.sum()[3:])}, {
+               'Death rate': 100 * _deaths.sum()[3:] / (_recovered.sum()[3:] + _deaths.sum()[3:]),
+               'Recovery rate': 100 * _recovered.sum()[3:] / (_recovered.sum()[3:] + _deaths.sum()[3:])}, {
                'Confirmed': _confirmed.groupby("Country/Region").sum().T[3:],
                'Deaths': _deaths.groupby("Country/Region").sum().T[3:],
                'Recovered': _recovered.groupby("Country/Region").sum().T[3:],
                'Active': _confirmed.groupby("Country/Region").sum().T[3:] - _recovered.groupby(
                    "Country/Region").sum().T[3:] - _deaths.groupby("Country/Region").sum().T[3:],
-               'Death/Outcome': 100 * _deaths.groupby(
+               'Death rate': 100 * _deaths.groupby(
+                   "Country/Region").sum().T[3:] / (_recovered.groupby(
+                   "Country/Region").sum().T[3:] + _deaths.groupby("Country/Region").sum().T[3:]),
+               'Recovery rate': 100 * _recovered.groupby(
                    "Country/Region").sum().T[3:] / (_recovered.groupby(
                    "Country/Region").sum().T[3:] + _deaths.groupby("Country/Region").sum().T[3:])
            }
